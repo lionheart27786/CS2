@@ -1,157 +1,88 @@
-% MATLAB code for plotting probability of error for different values of M in M-PSK
+EbN0_db = 0:2:24;
+EbN0 = 10.^(EbN0_db/10);
 
-% Define the values of M
-M_values = [2, 4, 8, 16];
+%MPSK
+M_PSK = [2, 4, 8, 16, 32];
+P_SER_PSK = zeros(length(M_PSK), length(EbN0));
 
-% Define the range of Eb/N0 (in dB)
-EbN0_dB = 0:1:20;
-
-% Convert Eb/N0 from dB to linear scale
-EbN0 = 10.^(EbN0_dB/10);
-
-% Preallocate the probability of error array
-Pe = zeros(length(M_values), length(EbN0));
-
-% Calculate the probability of error for each M
-for i = 1:length(M_values)
-    M = M_values(i);
-    k = log2(M); % Number of bits per symbol
-    Pe(i, :) = 2*qfunc(sqrt(2*EbN0*k)*sin(pi/M));
+for i = 1:length(M_PSK)
+M = M_PSK(i);
+P_SER_PSK(i,:) = 2 * qfunc(sqrt(2*EbN0*sin(pi/M)));
 end
 
-% Plot the results
-figure;
-for i = 1:length(M_values)
-    semilogy(EbN0_dB, Pe(i, :), 'DisplayName', sprintf('M = %d', M_values(i)));
-    hold on;
+%MPAM
+M_PAM = [2, 4, 8, 16];
+P_SER_PAM = zeros(length(M_PAM), length(EbN0));
+
+for i = 1:length(M_PAM)
+M = M_PAM(i);
+P_SER_PAM(i,:) = 2 *(M-1)/M * qfunc(sqrt(6*log2(M)/(M^2 - 1) * EbN0));
 end
 
+%MQAM
+M_QAM = [4,16,64,256];
+P_SER_QAM = zeros(length(M_QAM), length(EbN0));
+for i = 1:length(M_QAM)
+M = M_QAM(i);
+P_SER_QAM(i,:) = 4 * (1 - 1/sqrt(M)) * qfunc(sqrt(3*log2(M)/(M-1) * EbN0))
+end
+
+%MFSK (coherent)
+M_MFSK = [2, 4, 8, 16, 32]; % M values for MFSK
+P_SER_MFSK_coherent = zeros(length(M_MFSK), length(EbN0));
+for i = 1:length(M_MFSK)
+M = M_MFSK(i);
+P_SER_MFSK_coherent(i, :) = qfunc(sqrt(2*EbN0*log2(M)/(M-1)));
+end
+
+%MFSK (non coherent)
+P_SER_MFSK_noncoherent = zeros(length(M_MFSK), length(EbN0));
+for i = 1:length(M_MFSK)
+M = M_MFSK(i);
+P_SER_MFSK_noncoherent(i, :) = exp(-(EbN0/2)) .* (((1+EbN0).^(M-1) - 1)./(M-1))
+end
+
+subplot(2,3,1)
+for i=1:length(M_PSK)
+semilogy(EbN0_db,P_SER_PSK(i,:),'-o'); hold on;
+end
+title('MPSK');
+xlabel('Eb/N0 in db')
+ylabel('SER');
 grid on;
-xlabel('Eb/N0 (dB)');
-ylabel('Probability of Error');
-title('Probability of Error for M-PSK');
-legend show;
 
-% MATLAB code for plotting probability of error for M-FSK (coherent and non-coherent)
-
-% Clear all variables and close all figures
-clear all;  clc;
-
-% Define range of SNR (in dB)
-SNR_dB = 0:1:20;
-SNR_linear = 10.^(SNR_dB/10);
-
-% Define different values of M (alphabet size)
-M_values = [2, 4, 8, 16, 32];
-
-% Initialize the probability of error matrices
-Pe_coherent = zeros(length(M_values), length(SNR_dB));
-Pe_noncoherent = zeros(length(M_values), length(SNR_dB));
-
-% Calculate the probability of error for coherent and non-coherent M-FSK
-for i = 1:length(M_values)
-    M = M_values(i);
-    for j = 1:length(SNR_dB)
-        % Coherent M-FSK
-        Pe_coherent(i, j) = 0.5 * erfc(sqrt(SNR_linear(j)/2) * sqrt(log2(M)/M));
-       
-        % Non-coherent M-FSK
-        Pe_noncoherent(i, j) = 0.5 * exp(-SNR_linear(j)/(2 * (M - 1)));
-    end
+subplot(2,3,2)
+for i=1:length(M_PAM)
+semilogy(EbN0_db,P_SER_PAM(i,:),'-o'); hold on;
 end
-
-% Plotting the results
-figure ;
-hold on; grid on;
-for i = 1:length(M_values)
-    semilogy(SNR_dB, Pe_coherent(i, :), 'DisplayName', sprintf('Coherent M=%d', M_values(i)));    
-end
-
-% Add labels and title
-xlabel('SNR (dB)');
-ylabel('Probability of Error');
-title('Probability of Error for M-FSK (Coherent)');
-legend('show');
-hold off;
-
-figure ;
-hold on; grid on;
-for i = 1:length(M_values)
-    semilogy(SNR_dB, Pe_noncoherent(i, :), '--', 'DisplayName', sprintf('Non-Coherent M=%d', M_values(i)));  
-end
-
-% Add labels and title
-xlabel('SNR (dB)');
-ylabel('Probability of Error');
-title('Probability of Error for M-FSK (Non-Coherent)');
-legend('show');
-hold off;
-
-% MATLAB script to plot the probability of error for different values of M-QAM
-clear;
-clc;
-
-% Define SNR range in dB
-SNR_dB = 0:1:20;
-SNR = 10.^(SNR_dB/10); % Convert SNR from dB to linear scale
-
-% Define M values for M-QAM
-M_values = [2,4,8,16];
-
-% Probability of error calculation for M-QAM
-Pe_MQAM = @(M, SNR) (2*(1-1/sqrt(M)).*erfc(sqrt(3*SNR/(2*(M-1))))/log2(M));
-
-% Plot probability of error for different M-QAM
-figure;
-hold on;
-for i = 1:length(M_values)
-    M = M_values(i);
-    Pe = Pe_MQAM(M, SNR);
-    semilogy(SNR_dB, Pe, 'DisplayName', sprintf('%d-QAM', M), 'LineWidth', 1.5);
-end
-
-% Customize plot
+title('MPAM');
+xlabel('Eb/N0 in db')
+ylabel('SER');
 grid on;
-xlabel('SNR (dB)');
-ylabel('Probability of Error');
-title('Probability of Error for Different M-QAM');
-legend('show');
-set(gca, 'YScale', 'log'); % Set y-axis to logarithmic scale
-xlim([0 20]);
-ylim([1e-5 1]);
 
-% Show the plot
-hold off;
-
-% MATLAB script to plot the probability of error for different values of M-PAM
-
-% Define the values of M for M-PAM
-M_values = [2, 4, 8, 16]; % Example values for M
-
-% Define the range of Eb/N0 values (in dB)
-EbN0_dB = 0:2:20;
-EbN0 = 10.^(EbN0_dB/10); % Convert from dB to linear scale
-
-% Pre-allocate the probability of error matrix
-Pe = zeros(length(M_values), length(EbN0));
-
-% Calculate the probability of error for each M
-for i = 1:length(M_values)
-    M = M_values(i);
-    % Calculate the probability of error for M-PAM
-    Pe(i, :) = 2 * (1 - 1/M) * qfunc(sqrt(3*log2(M)/(M^2-1) * EbN0));
+subplot(2,3,3)
+for i=1:length(M_QAM)
+semilogy(EbN0_db,P_SER_QAM(i,:),'-o'); hold on;
 end
-
-% Plot the probability of error for each M
-figure;
-for i = 1:length(M_values)
-    semilogy(EbN0_dB, Pe(i, :), 'DisplayName', sprintf('%d-PAM', M_values(i)));
-    hold on;
-end
-
-% Set plot properties
+title('MQAM');
+xlabel('Eb/N0 in db')
+ylabel('SER');
 grid on;
-xlabel('E_b/N_0 (dB)');
-ylabel('Probability of Error');
-title('Probability of Error for M-PAM');
-legend('show');
+
+subplot(2,3,4)
+for i=1:length(M_MFSK)
+semilogy(EbN0_db,P_SER_MFSK_coherent(i,:),'-o'); hold on;
+end
+title('MFSK coherent');
+xlabel('Eb/N0 in db')
+ylabel('SER');
+grid on;
+
+subplot(2,3,5)
+for i=1:length(M_MFSK)
+semilogy(EbN0_db,P_SER_MFSK_noncoherent(i,:),'-o'); hold on;
+end
+title('MFSK noncoherent');
+xlabel('Eb/N0 in db')
+ylabel('SER');
+grid on;
